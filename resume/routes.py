@@ -1,4 +1,6 @@
 from flask import Flask,make_response,render_template,url_for,flash,redirect,request,abort
+# from flask_weasyprint import HTML
+from xhtml2pdf import pisa
 from resume.forms import Reg,Login,account,posting,resumebuilder,useredu,userexp,userpro,usersk,achieve,requestresetform,resetpassword
 from resume.models import user,education,experience,projects,userdetails,skills,achievements
 from resume import app,db, bcrypt , mail
@@ -11,6 +13,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 title = "Posts"
+path_to_wkhtmltopdf = r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe'
 
 @app.route("/")
 def hello():
@@ -167,10 +170,10 @@ def postacheive():
     form = achieve()
     achadded = achievements.query.filter_by(ach=current_user).all()
     if form.validate_on_submit():
-        acheive = achievements(achname=form.achname.data,achdesc=form.achname.data,ach=current_user)
+        acheive = achievements(achname=form.achname.data,achdesc=form.achdesc.data,ach=current_user)
         db.session.add(acheive)
         db.session.commit()
-        return redirect(url_for("postskills"))
+        return redirect(url_for("postacheive"))
         #print(form.skillname.data)
 
     return render_template("acheive.html",title="Acheivements",form=form,achadded=achadded)
@@ -217,11 +220,13 @@ def downloadpdf():
     image_file = url_for('static',filename='profiles/'+ current_user.image_file)
     css = ["resume/static/resume.css","resume/static/main.css"]
     rendered = render_template("resume.html",edu=edu,exp=exp,pro=pro,usr=usr,sk=skillsadded,achmade=achmade,image_file=image_file)
-    pdf =pdfkit.from_string(rendered,False,css=css)
-
+    # Configure wkhtmltopdf PATH via custom configuration
+    config = pdfkit.configuration(wkhtmltopdf=path_to_wkhtmltopdf)
+    options={'page-size':'A4', 'dpi':400, 'disable-smart-shrinking': '','enable-local-file-access': ''}
+    pdf = pdfkit.from_string(rendered,False,css=css,configuration=config,options=options)
     response = make_response(pdf)
     response.headers["Content-Type"] = "application/pdf"
-    response.headers["Content-Disposition"] = "attachement; filename=resume.pdf"
+    response.headers["Content-Disposition"] = "attachment; filename=download.pdf"
 
     return response
     
@@ -314,7 +319,7 @@ def delete_exp(experience_id):
     db.session.delete(expview)
     db.session.commit()
     flash('Your experience detail post has been deleted!', 'success')
-    return redirect(url_for('postexp'))
+    return redirect(url_for('postexperience'))
     
 
 #Projects
